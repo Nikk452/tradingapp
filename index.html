@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="loginscreen">
+        <form id="loginform">
+            <h2>Login Screen</h2>
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username"><br><br>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password"><br><br>
+            <input type="submit" value="Login">
+            <label id="loginerror" style="color:red;"></label>
+        </form>
+    </div>
+    <div id="app">
+        <div id="left">
+            <h1>Trading App</h1>
+            <h2 id="username">Welcome</h2>
+            <textarea id="dataInput" rows="10" cols="30" placeholder="Enter data here..."></textarea><br>
+            <button id="processData">Process Data</button>
+        </div>
+        <div id="splitter"></div>
+        <div id="right">
+            <canvas id="chart"></canvas>
+        </div>
+    </div>
+    <script src="app.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
