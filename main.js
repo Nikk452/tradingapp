@@ -24,4 +24,11 @@ class Main {
         }
     }
 }
+
 Main.main();
+
+function deletelocalstorage() {
+        console.log("Clearing local storage and reloading the page.");
+        localStorage.clear();
+        location.reload();
+    }
