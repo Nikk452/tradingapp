@@ -20,18 +20,19 @@
     </div>
     <div id="app">
         <div id="left">
-            <button id="Log Out" onclick="deletelocalstorage()">Log Out</button>
+            <button id="logoutbutton">Log Out</button>
             <h1>Trading App</h1>
-            <h2 id="username">Welcome</h2>
-            <textarea id="dataInput" rows="10" cols="30" placeholder="Enter data here..."></textarea><br>
-            <button id="processDataBtn">Process Data</button>
+            <h2 id="accountname"></h2>
+            <button id="processDataBtn">Process Data</button><br><br>
+            <button id="processDataBtn2">Process Data</button><br><br>
+            <button id="processDataBtn3">Process Data</button><br>
         </div>
         <div id="splitter"></div>
         <div id="right">
             <canvas id="chart"></canvas>
         </div>
     </div>
-    <script src="app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="main.js"></script>
 </body>
 </html>
