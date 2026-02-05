@@ -20,9 +20,67 @@
     </div>
     <div id="app">
         <div id="left">
+            <h1>Trading Dashboard</h1>
             <button id="logoutbutton">Log Out</button>
-            <h1>Trading App</h1>
             <h2 id="accountname"></h2>
+            <h2>Trading Dashboard</h2>
+            
+            <div class="section">
+                <h3>Binance API Credentials</h3>
+                <div class="form-group">
+                    <label for="apiKey">API Key:</label>
+                    <input type="password" id="apiKey" placeholder="Enter your API key" class="api-input">
+                </div>
+                <div class="form-group">
+                    <label for="apiSecret">API Secret:</label>
+                    <input type="password" id="apiSecret" placeholder="Enter your API secret" class="api-input">
+                </div>
+                <button id="connectBtn" class="btn btn-primary">Connect API</button>
+                <div id="apiStatus" class="status-badge status-disconnected">Disconnected</div>
+            </div>
+            
+            <div class="section">
+                <h3>Chart Settings</h3>
+                <div class="form-group">
+                    <label for="symbol">Trading Pair:</label>
+                    <input type="text" id="symbol" value="BTCUSDT" class="api-input">
+                    <button id="updateSymbolBtn" class="btn btn-secondary">Update</button>
+                </div>
+                <div class="form-group">
+                    <label for="interval">Interval:</label>
+                    <select id="interval">
+                        <option value="1m">1 Minute</option>
+                        <option value="5m">5 Minutes</option>
+                        <option value="15m">15 Minutes</option>
+                        <option value="1h">1 Hour</option>
+                        <option value="4h">4 Hours</option>
+                        <option value="1d">1 Day</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="chartType">Chart Type:</label>
+                    <select id="chartType">
+                        <option value="candlestick">Candlestick</option>
+                        <option value="line">Line</option>
+                        <option value="bar">Bar</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>WebSocket Status</h3>
+                <div id="wsStatus" class="status-badge status-disconnected">Disconnected</div>
+                <p id="wsPrice" class="price-display">---</p>
+            </div>
+            
+            <div class="section">
+                <h3>Chart Controls</h3>
+                <ul class="help-list">
+                    <li><strong>Scroll:</strong> Zoom in/out smoothly</li>
+                    <li><strong>Drag:</strong> Pan left/right</li>
+                    <li><strong>Double-Click:</strong> Reset view</li>
+                </ul>
+            </div>
             <button id="processDataBtn">Process Data</button><br><br>
             <button id="processDataBtn2">Process Data</button><br><br>
             <button id="processDataBtn3">Process Data</button><br>
@@ -33,6 +91,10 @@
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.0/dist/chartjs-chart-financial.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@3.0.0/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.js"></script>
     <script src="main.js"></script>
 </body>
 </html>
