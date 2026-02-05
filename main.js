@@ -24,24 +24,27 @@ class App {
             },
             options: {
                 responsive: true,
-                scales: {
-                    x: {
-                        display: true,  
-                        title: {
-                            display: true,
-                            text: 'X-Axis'
-                        }
-                    },
-                    y: {
-                        display: true,      
-                        title: {
-                            display: true,
-                            text: 'Y-Axis'  
+                plugins: {
+                    zoom: {
+                        pan: { enabled: true, mode: 'xy' }, // Allow panning along x-axis
+                        zoom: {
+                            enabled: true,
+                            mode: 'x',
+                            wheel: { enabled: true, speed: 0.01 },
+                            drag: { enabled: false },
+                            pinch: { enabled: true },
+                            onZoomComplete: function({chart}) {
+                                console.log('Zoom complete');
+                            }
                         }
                     }
                 }
             }
         });
+        let candledata = [10, 20, 15, 25, 30, 28, 35, 40, 45, 50, 55, 60, 65, 40, 30, 20, 10, 50];
+        this.chart.data.datasets[0].data = candledata;
+        this.chart.data.labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+        this.chart.update();
     }
 
     buttonsInit(){
