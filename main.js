@@ -47,7 +47,7 @@ function init() {
     document.getElementById("loginscreen").style.display = "none";
     document.getElementById("app").style.display = "flex";
     document.getElementById("accountname").innerText = "Welcome, " + localStorage.getItem("username");
-    buttonsInit();
+    buttons();
     chartInit();
 }
 
@@ -75,7 +75,7 @@ function chartInit() {
     chart.update();
 }
 
-function buttonsInit(){
+function buttons(){
     document.getElementById("logoutbutton").addEventListener("click", logout);
     clearCredsBtn.addEventListener('click', clearStoredCredentials);
     splitter.addEventListener('mousedown', e => {
@@ -97,8 +97,25 @@ function buttonsInit(){
         if (newLeftPx > max) newLeftPx = max;
         left.style.width = newLeftPx + 'px';
     });
+    connectBtn.addEventListener('click', () => {
+        connectAPI()
+    })
 }
 
+async function connectAPI() {
+    apiKey = apiKeyInput.value.trim();
+    apiSecret = apiSecretInput.value.trim();
+  
+    if (!apiKey || !apiSecret) {
+        apiStatusBadge.textContent = 'Error: Missing credentials';
+        apiStatusBadge.className = 'status-badge status-disconnected';
+        return;
+    }
+    const success = await verifyBinanceAPI(apiKey, apiSecret);
+    if (success) {
+        saveCredentials(apiKey, apiSecret);
+    }
+}
 function logout(){
     console.log("Logging out, clearing local storage");
     clearStoredCredentials()
@@ -115,6 +132,7 @@ function loadStoredCredentials() {
         apiSecret = storedSecret;
         updateStorageStatus(true);
         console.log('Loaded stored API credentials');
+        connectAPI();
     } else {
         updateStorageStatus(false);
     }
@@ -186,25 +204,6 @@ async function verifyBinanceAPI(key, secret) {
     return false;
   }
 }
-
-connectBtn.addEventListener('click', async () => {
-  apiKey = apiKeyInput.value.trim();
-  apiSecret = apiSecretInput.value.trim();
-  
-  if (!apiKey || !apiSecret) {
-    apiStatusBadge.textContent = 'Error: Missing credentials';
-    apiStatusBadge.className = 'status-badge status-disconnected';
-    return;
-  }
-  
-  // Verify API credentials with actual request
-  const success = await verifyBinanceAPI(apiKey, apiSecret);
-  
-  // If verification successful, save credentials
-  if (success) {
-    saveCredentials(apiKey, apiSecret);
-  }
-});
 
 window.addEventListener('DOMContentLoaded', loadStoredCredentials);
 loginscreen.style.display = loggedin ? "none" : "flex";
