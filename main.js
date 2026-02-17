@@ -7,7 +7,7 @@ let loginform = document.getElementById("loginform");
 const left = document.getElementById('left');
 const splitter = document.getElementById('splitter');
 const container = document.getElementById('container');
-
+const canvas = document.getElementById('chart');
 const apiKeyInput = document.getElementById('apiKey');
 const apiSecretInput = document.getElementById('apiSecret');
 const connectBtn = document.getElementById('connectBtn');
@@ -22,7 +22,8 @@ const chartTypeSelect = document.getElementById('chartType');
 
 const wsStatusBadge = document.getElementById('wsStatus');
 const wsPriceDisplay = document.getElementById('wsPrice');
-
+let panning = false;
+let panStart = 0;
 let ws = null;
 let currentSymbol = 'BTCUSDT';
 let currentInterval = '1m';
@@ -122,9 +123,20 @@ function buttons(){
         document.body.style.cursor = 'col-resize';
         e.preventDefault();
     });
+    canvas.addEventListener('mousedown', (e) => {
+        if (e.button === 0) {
+            panning = true;
+            panStart = e.clientX;
+            canvas.style.cursor = 'grabbing';
+        }
+    });
     document.addEventListener('mouseup', () => {
         dragging = false;
         document.body.style.cursor = '';
+        if (panning) {
+            panning = false;
+            canvas.style.cursor = 'grab';
+        }
     });
     document.addEventListener('mousemove', e => {
         if (!dragging) return;
@@ -135,6 +147,74 @@ function buttons(){
         if (newLeftPx < min) newLeftPx = min;
         if (newLeftPx > max) newLeftPx = max;
         left.style.width = newLeftPx + 'px';
+    });
+    canvas.parentElement.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        if (!chart.scales.x || candleData.length === 0) return;
+        const fullMin = candleData[0].x;
+        const fullMax = candleData[candleData.length - 1].x;
+        const currentMin = viewMinX !== null ? viewMinX : fullMin;
+        const currentMax = viewMaxX !== null ? viewMaxX : fullMax;
+        const range = currentMax - currentMin;
+        const zoomFactor = 0.1;
+        const minDataPoints = 2;
+        const minRange = minDataPoints * 60000;
+        const center = (currentMin + currentMax) / 2;
+        if (e.deltaY < 0) {
+            const newRange = range * (1 - zoomFactor);
+            if (newRange >= minRange) {
+                viewMinX = center - newRange / 2;
+                viewMaxX = center + newRange / 2;
+                chart.options.scales.x.min = viewMinX;
+                chart.options.scales.x.max = viewMaxX;
+                chart.update('none');
+            }
+        } else {
+            const newRange = range * (1 + zoomFactor);
+            const maxRange = fullMax - fullMin;
+            if (newRange <= maxRange) {
+                viewMinX = center - newRange / 2;
+                viewMaxX = center + newRange / 2;
+                chart.options.scales.x.min = viewMinX;
+                chart.options.scales.x.max = viewMaxX;
+                chart.update('none');
+            } else {
+                viewMinX = null;
+                viewMaxX = null;
+                chart.options.scales.x.min = undefined;
+                chart.options.scales.x.max = undefined;
+                chart.update('none');
+            }
+        }
+    });
+    canvas.addEventListener('mousemove', (e) => {
+        if (!panning || !chart.scales.x || candleData.length === 0) {
+            canvas.style.cursor = 'grab';
+            return;
+        }
+        const fullMin = candleData[0].x;
+        const fullMax = candleData[candleData.length - 1].x;
+        const currentMin = viewMinX !== null ? viewMinX : fullMin;
+        const currentMax = viewMaxX !== null ? viewMaxX : fullMax;
+        const range = currentMax - currentMin;
+        const pixelsPerMillisecond = canvas.width / range;
+        const diff = e.clientX - panStart;
+        const timeShift = -diff / pixelsPerMillisecond;
+        let newMin = currentMin + timeShift;
+        let newMax = currentMax + timeShift;
+        viewMinX = newMin;
+        viewMaxX = newMax;
+        chart.options.scales.x.min = viewMinX;
+        chart.options.scales.x.max = viewMaxX;
+        chart.update('none');
+        panStart = e.clientX;
+    });
+    canvas.addEventListener('dblclick', () => {
+        viewMinX = null;
+        viewMaxX = null;
+        chart.options.scales.x.min = undefined;
+        chart.options.scales.x.max = undefined;
+        chart.update('none');
     });
     connectBtn.addEventListener('click', () => {
         connectAPI()
@@ -167,7 +247,6 @@ function buttons(){
 async function connectAPI() {
     apiKey = apiKeyInput.value.trim();
     apiSecret = apiSecretInput.value.trim();
-  
     if (!apiKey || !apiSecret) {
         apiStatusBadge.textContent = 'Error: Missing credentials';
         apiStatusBadge.className = 'status-badge status-disconnected';
@@ -178,6 +257,7 @@ async function connectAPI() {
         saveCredentials(apiKey, apiSecret);
     }
 }
+
 function logout(){
     console.log("Logging out, clearing local storage");
     clearStoredCredentials()
@@ -225,7 +305,7 @@ function clearStoredCredentials() {
 function updateStorageStatus(isSaved) {
   if (storageStatus) {
     if (isSaved) {
-        storageStatus.textContent = '💾 Credentials saved locally';
+        storageStatus.textContent = 'Credentials saved locally';
         storageStatus.className = 'saved-indicator saved';
         clearCredsBtn.style.display = 'inline-block';
     } else {
@@ -240,15 +320,11 @@ async function verifyBinanceAPI(key, secret) {
   try {
     apiStatusBadge.textContent = 'Connecting...';
     apiStatusBadge.className = 'status-badge status-loading';
-    
-    // Call local backend server to verify credentials
     const response = await fetch(`http://localhost:3000/verify-api?key=${encodeURIComponent(key)}&secret=${encodeURIComponent(secret)}`);
-    
     const data = await response.json();
-    
     if (data.success) {
       apiConnected = true;
-      apiStatusBadge.textContent = 'Connected ✓';
+      apiStatusBadge.textContent = 'Connected';
       apiStatusBadge.className = 'status-badge status-connected';
       console.log('API Connection Verified! Account:', data.accountType);
       return true;
@@ -360,6 +436,21 @@ async function fetchBinanceKlines(beforeTime = null) {
     }
 }
 
+async function fetchMoreHistoricalData() {
+    if (isLoadingMoreData || allHistoricalData.length === 0) return;
+    
+    isLoadingMoreData = true;
+    const earliestTime = allHistoricalData[0].x;
+    const newData = await fetchBinanceKlines(earliestTime);
+    
+    if (newData.length > 0) {
+        allHistoricalData = [...newData, ...allHistoricalData];
+        console.log('Loaded more historical data. Total candles:', allHistoricalData.length);
+    }
+    
+    isLoadingMoreData = false;
+}
+
 function getVisibleCandles() {
   if (allHistoricalData.length === 0) return [];
   
@@ -367,7 +458,7 @@ function getVisibleCandles() {
     return allHistoricalData;
   }
   const viewRange = viewMaxX - viewMinX;
-  const bufferTime = viewRange * 0.5; // 50% buffer on each side
+  const bufferTime = viewRange * 0.5;
   
   const filterMin = viewMinX - bufferTime;
   const filterMax = viewMaxX + bufferTime;
