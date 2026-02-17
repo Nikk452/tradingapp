@@ -109,7 +109,6 @@ function init() {
     console.log("Trading App started");
     loginscreen.style.display = "none";
     document.getElementById("app").style.display = "flex";
-    document.getElementById("accountname").innerText = "Welcome, " + localStorage.getItem("username");
     buttons();
     loadHistoricalData()
     connectWebSocket();
@@ -217,7 +216,7 @@ function buttons(){
         chart.update('none');
     });
     connectBtn.addEventListener('click', () => {
-        connectAPI()
+        connectAPI(apiKeyInput.value.trim(),apiSecretInput.value.trim())
     })
     updateSymbolBtn.addEventListener('click', () => {
         const newSymbol = symbolInput.value.toUpperCase().trim();
@@ -244,18 +243,28 @@ function buttons(){
     });
 }
 
-async function connectAPI() {
-    apiKey = apiKeyInput.value.trim();
-    apiSecret = apiSecretInput.value.trim();
+async function connectAPI(val1, val2, b1) {
+    apiKey = val1;
+    apiSecret = val2;
     if (!apiKey || !apiSecret) {
-        apiStatusBadge.textContent = 'Error: Missing credentials';
-        apiStatusBadge.className = 'status-badge status-disconnected';
+        if(b1){
+            document.getElementById("loginerror").innerText = "Invalid credentials. Please try again.";
+        }else{
+            apiStatusBadge.textContent = 'Error: Missing credentials';
+            apiStatusBadge.className = 'status-badge status-disconnected';
+        }
         return;
     }
     const success = await verifyBinanceAPI(apiKey, apiSecret);
     if (success) {
         saveCredentials(apiKey, apiSecret);
-    }
+        localStorage.setItem(STORAGE_KEYS.loggedin, "true");
+        if(b1){
+            apiKeyInput.value = apiKey;
+            apiSecretInput.value = apiSecret;
+            init();
+        } 
+    }else document.getElementById("loginerror").innerText = "Invalid credentials. Please try again.";
 }
 
 function logout(){
@@ -274,7 +283,7 @@ function loadStoredCredentials() {
         apiSecret = storedSecret;
         updateStorageStatus(true);
         console.log('Loaded stored API credentials');
-        connectAPI();
+        connectAPI(apiKey, apiSecret);
     } else {
         updateStorageStatus(false);
     }
@@ -551,12 +560,10 @@ if(!loggedin) {
         event.preventDefault();
         let username = document.getElementById("username").value;
         let password = document.getElementById("password").value;
-        if(username === "admin1" && password === "admin1") {
-            localStorage.setItem(STORAGE_KEYS.loggedin, "true");
-            localStorage.setItem(STORAGE_KEYS.user, username);
-            init();
+        if(username && password) {
+            connectAPI(username, password, true);
         } else {
-            document.getElementById("loginerror").innerText = "Invalid credentials. Please try again.";
+            document.getElementById("loginerror").innerText = "Please enter both username and password.";
         }
     });
 } else {
