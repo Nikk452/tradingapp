@@ -7,14 +7,43 @@ html,body{height:100%;margin:0;font-family:Arial,sans-serif}
     align-items: center;
     justify-content: center;
     height: 100vh;
-    background-color: #ad4646;
+    background-color: #2a2525;
 }
 #loginform {
-    background: #fff;
+    background: #f1f1f1;
     padding: 20px;
     border-radius: 5px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
+
+#loginform input[type="submit"] {
+    background: linear-gradient(135deg, #4db8ff 0%, #2da3ff 100%);
+    color: #fff;
+    border: none;
+    padding: 12px 30px;
+    font-size: 1.1em;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 20px;
+    width: 100%;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(45, 163, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#loginform input[type="submit"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(45, 163, 255, 0.6);
+    background: linear-gradient(135deg, #5ac3ff 0%, #3dafff 100%);
+}
+
+#loginform input[type="submit"]:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 10px rgba(45, 163, 255, 0.4);
+}
+
 #app {
     display: none;
     height: 100vh;

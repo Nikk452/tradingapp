@@ -1,23 +1,18 @@
 const http = require('http');
 const { URL } = require('url');
 const crypto = require('crypto');
-
 const PORT = process.env.PORT || 3000;
-
-// Helper: create signed request headers for Binance API
 function signBinanceRequest(params, secret) {
   const qs = new URLSearchParams(params).toString();
   const signature = crypto.createHmac('sha256', secret).update(qs).digest('hex');
   return { ...params, signature };
 }
-
 async function verifyBinance(key, secret) {
   try {
     const timestamp = Date.now();
     const qs = `timestamp=${timestamp}`;
     const signature = crypto.createHmac('sha256', secret).update(qs).digest('hex');
     const url = `https://api.binance.com/api/v3/account?${qs}&signature=${signature}`;
-
     const res = await fetch(url, { headers: { 'X-MBX-APIKEY': key } });
     if (!res.ok) {
       const text = await res.text();
@@ -29,7 +24,6 @@ async function verifyBinance(key, secret) {
     return { success: false, error: err.message };
   }
 }
-
 async function getAccountInfo(key, secret) {
   try {
     const timestamp = Date.now();
@@ -37,7 +31,6 @@ async function getAccountInfo(key, secret) {
     const qs = new URLSearchParams(params).toString();
     const signature = crypto.createHmac('sha256', secret).update(qs).digest('hex');
     const url = `https://api.binance.com/api/v3/account?${qs}&signature=${signature}`;
-
     const res = await fetch(url, { headers: { 'X-MBX-APIKEY': key } });
     if (!res.ok) {
       const text = await res.text();
@@ -49,7 +42,6 @@ async function getAccountInfo(key, secret) {
     return { success: false, error: err.message };
   }
 }
-
 async function placeOrder(key, secret, symbol, side, type, quantity, price = null) {
   try {
     const timestamp = Date.now();
@@ -61,7 +53,6 @@ async function placeOrder(key, secret, symbol, side, type, quantity, price = nul
     const qs = new URLSearchParams(params).toString();
     const signature = crypto.createHmac('sha256', secret).update(qs).digest('hex');
     const url = `https://api.binance.com/api/v3/order?${qs}&signature=${signature}`;
-
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'X-MBX-APIKEY': key }
