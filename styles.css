@@ -294,3 +294,125 @@ html,body{height:100%;margin:0;font-family:Arial,sans-serif}
 #left::-webkit-scrollbar-thumb:hover {
   background:#555;
 }
+
+/* Spot Trading Section */
+#spot-trading-panel {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+  border: 1px solid #444;
+}
+
+#spot-trading-panel h3 {
+  margin-top: 0;
+  color: #4db8ff;
+  border-bottom: 2px solid #4db8ff;
+  padding-bottom: 8px;
+}
+
+.info-text {
+  font-size: 0.85em;
+  color: #888;
+  margin: 8px 0;
+  line-height: 1.4;
+}
+
+.balances {
+  background: #1a1a1a;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  border-left: 3px solid #26a69a;
+}
+
+.balances div {
+  padding: 6px 0;
+  color: #e0e0e0;
+  font-size: 0.9em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.balances div strong {
+  color: #4db8ff;
+}
+
+.balances div span {
+  color: #26a69a;
+  font-weight: bold;
+  margin-left: 8px;
+}
+
+.trade-form {
+  background: #1a1a1a;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #333;
+}
+
+.form-row {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-row label {
+  color: #b0b0b0;
+  font-size: 0.85em;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.form-row select,
+.form-row input {
+  width: 100%;
+  padding: 8px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  color: #e0e0e0;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.form-row select:focus,
+.form-row input:focus {
+  outline: none;
+  border-color: #4db8ff;
+  box-shadow: 0 0 4px rgba(77, 184, 255, 0.3);
+}
+
+.form-row input::placeholder {
+  color: #666;
+}
+
+.form-row .btn {
+  padding: 6px 8px;
+  font-size: 0.85em;
+  margin-top: 0;
+  width: auto;
+  align-self: flex-start;
+}
+
+.trade-message {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  font-weight: bold;
+  text-align: center;
+  min-height: 20px;
+  display: none;
+}
+
+.trade-message:not(:empty) {
+  display: block;
+  background: #2a2a2a;
+  border: 1px solid;
+  border-color: limegreen;
+  color: limegreen;
+}
+
+.trade-message[style*="crimson"],
+.trade-message[style*="red"] {
+  border-color: crimson;
+  color: crimson;
+}

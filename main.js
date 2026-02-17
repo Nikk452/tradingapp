@@ -31,6 +31,22 @@ let apiKey = '';
 let apiSecret = '';
 let apiConnected = false;
 
+const walletTotalEl = document.getElementById('walletTotal');
+const baseAssetEl = document.getElementById('baseAsset');
+const baseBalanceEl = document.getElementById('baseBalance');
+const quoteAssetEl = document.getElementById('quoteAsset');
+const quoteBalanceEl = document.getElementById('quoteBalance');
+const refreshBalancesBtn = document.getElementById('refreshBalances');
+const tradeForm = document.getElementById('tradeForm');
+const tradeSide = document.getElementById('tradeSide');
+const orderType = document.getElementById('orderType');
+const priceInput = document.getElementById('priceInput');
+const amountInput = document.getElementById('amountInput');
+const useMaxBtn = document.getElementById('useMax');
+const placeOrderBtn = document.getElementById('placeOrderBtn');
+const tradeMessage = document.getElementById('tradeMessage');
+let lastBalances = null;
+
 const STORAGE_KEYS = {
   apiKey: 'binance_api_key',
   apiSecret: 'binance_api_secret',
@@ -241,6 +257,76 @@ function buttons(){
         currentChartType = e.target.value;
         updateChartType();
     });
+
+    refreshBalancesBtn.addEventListener('click', refreshAndDisplayBalances);
+
+    orderType.addEventListener('change', () => {
+    if (orderType.value === 'MARKET') priceInput.disabled = true;
+    else priceInput.disabled = false;
+    });
+
+    useMaxBtn && useMaxBtn.addEventListener('click', () => {
+        const { base, quote } = getAssetsFromSymbol(currentSymbol);
+        if (tradeSide.value === 'SELL') {
+            const baseBal = parseFloat(findBalance(base).free);
+            amountInput.value = baseBal || '';
+        } else {
+            const quoteBal = parseFloat(findBalance(quote).free);
+            const price = orderType.value === 'MARKET' ? parseFloat(wsPriceDisplay.textContent.replace('$','')) : parseFloat(priceInput.value);
+            if (!price || price <= 0) { showTradeMessage('Price required to calculate max buy', true); return; }
+            amountInput.value = (quoteBal / price) || '';
+        }
+    });
+
+    placeOrderBtn && placeOrderBtn.addEventListener('click', async () => {
+        if (!apiKey || !apiSecret) { showTradeMessage('API credentials not set', true); return; }
+            const side = tradeSide.value;
+            const type = orderType.value;
+            const quantity = parseFloat(amountInput.value);
+            let price = parseFloat(priceInput.value);
+        if (type === 'MARKET') {
+            price = parseFloat(wsPriceDisplay.textContent.replace('$',''));
+        }
+        showTradeMessage('Placing order...', false);
+        console.log('Validation - quantity:', quantity, 'amountInput.value:', amountInput.value);
+        if (isNaN(quantity) || quantity <= 0) { showTradeMessage('Invalid amount', true); return; }
+        if (type === 'LIMIT' && (isNaN(price) || price <= 0)) { showTradeMessage('Invalid price', true); return; }
+
+        const { base, quote } = getAssetsFromSymbol(currentSymbol);
+        const baseBal = findBalance(base).free;
+        const quoteBal = findBalance(quote).free;
+
+        if (side === 'SELL' && quantity > baseBal) { showTradeMessage('Insufficient base asset balance', true); return; }
+        if (side === 'BUY') {
+            const required = price * quantity;
+            if (required > quoteBal) { showTradeMessage('Insufficient quote balance', true); return; }
+        }
+        
+        try {
+            const params = new URLSearchParams();
+            params.append('key', apiKey);
+            params.append('secret', apiSecret);
+            params.append('symbol', currentSymbol);
+            params.append('side', side);
+            params.append('type', type);
+            params.append('quantity', quantity);
+            if (type === 'LIMIT') params.append('price', price);
+            const resp = await fetch(`http://localhost:3000/place-order?${params.toString()}`);
+            const data = await resp.json();
+            console.log('Place order response:', { status: resp.status, ok: resp.ok, data });
+            if (data.success) {
+                showTradeMessage('Order placed successfully', false);
+                await refreshAndDisplayBalances();
+            } else {
+                const errMsg = data.msg || data.error || JSON.stringify(data);
+                console.error('Order failed with errMsg:', errMsg, 'data:', data);
+                showTradeMessage(errMsg || 'Order failed - unknown error', true);
+            }
+        } catch (err) {
+            console.error('place order error', err);
+            showTradeMessage(`Error: ${err.message || 'Order failed'}`, true);
+        }
+    });
 }
 
 async function connectAPI(val1, val2, b1) {
@@ -264,7 +350,84 @@ async function connectAPI(val1, val2, b1) {
             apiSecretInput.value = apiSecret;
             init();
         } 
+        refreshAndDisplayBalances();
+        
     }else document.getElementById("loginerror").innerText = "Invalid credentials. Please try again.";
+}
+
+function getAssetsFromSymbol(sym) {
+    const quotes = ['USDT','BUSD','USDC','BTC','ETH','BNB'];
+    for (const q of quotes) {
+        if (sym.endsWith(q)) return { base: sym.slice(0, sym.length - q.length), quote: q };
+    }
+    return { base: sym.slice(0, -3), quote: sym.slice(-3) };
+}
+
+async function fetchAccount() {
+    if (!apiKey || !apiSecret) return null;
+    try {
+        const resp = await fetch(`http://localhost:3000/account?key=${encodeURIComponent(apiKey)}&secret=${encodeURIComponent(apiSecret)}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        lastBalances = data.balances || [];
+        return data;
+    } catch (err) {
+        console.error('fetchAccount error', err);
+        return null;
+    }
+}
+
+function findBalance(asset) {
+    if (!lastBalances) return { free: 0, locked: 0 };
+    const b = lastBalances.find(x => x.asset === asset);
+    if (!b) return { free: 0, locked: 0 };
+    return { free: parseFloat(b.free), locked: parseFloat(b.locked) };
+}
+
+async function refreshAndDisplayBalances() {
+    tradeMessage.textContent = '';
+    const account = await fetchAccount();
+    if (!account) { tradeMessage.textContent = 'Unable to fetch balances'; return; }
+    const { base, quote } = getAssetsFromSymbol(currentSymbol);
+    baseAssetEl.textContent = base;
+    quoteAssetEl.textContent = quote;
+    const baseBal = findBalance(base);
+    const quoteBal = findBalance(quote);
+    baseBalanceEl.textContent = baseBal.free.toString();
+    quoteBalanceEl.textContent = quoteBal.free.toString();
+    try {
+        const tickerResp = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${currentSymbol}`);
+        let totalDisplay = `${quoteBal.free} ${quote}`;
+        if (tickerResp.ok) {
+        const tick = await tickerResp.json();
+        const price = parseFloat(tick.price);
+        const totalQuote = (parseFloat(quoteBal.free) || 0) + (parseFloat(baseBal.free) || 0) * (isFinite(price) ? price : 0);
+        totalDisplay = new Intl.NumberFormat(undefined, { maximumFractionDigits: 8 }).format(totalQuote) + ` ${quote}`;
+        }
+        walletTotalEl.textContent = totalDisplay;
+    } catch (err) {
+        // fallback to quote only
+        walletTotalEl.textContent = `${quoteBal.free} ${quote}`;
+    }
+}
+
+function showTradeMessage(msg, isError = false) {
+    if (!tradeMessage) return;
+    console.log('showTradeMessage:', msg, isError);
+    tradeMessage.textContent = msg;
+    tradeMessage.style.display = 'block';
+    tradeMessage.style.color = isError ? 'crimson' : 'limegreen';
+    tradeMessage.style.borderColor = isError ? 'crimson' : 'limegreen';
+    tradeMessage.style.backgroundColor = '#2a2a2a';
+    tradeMessage.style.border = `1px solid ${isError ? 'crimson' : 'limegreen'}`;
+    tradeMessage.style.padding = '10px';
+    tradeMessage.style.borderRadius = '3px';
+    tradeMessage.style.marginTop = '12px';
+    tradeMessage.style.fontSize = '0.9em';
+    tradeMessage.style.fontWeight = 'bold';
+    tradeMessage.style.textAlign = 'center';
+    priceInput.value = '';
+    amountInput.value = '';
 }
 
 function logout(){
@@ -552,7 +715,7 @@ async function loadHistoricalData() {
     candleData = data;
     updateChartData();
 }
-
+priceInput.disabled = true;
 window.addEventListener('DOMContentLoaded', loadStoredCredentials);
 loginscreen.style.display = loggedin ? "none" : "flex";
 if(!loggedin) {

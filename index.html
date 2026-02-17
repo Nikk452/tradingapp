@@ -67,7 +67,46 @@
                     </select>
                 </div>
             </div>
-            
+            <div class="section" id="spot-trading-panel">
+                <h3>Spot Trading</h3>
+                <p class="info-text">View spot wallet and place quick buy/sell orders. Balances are read from your connected Binance API.</p>
+                <div class="balances">
+                    <div><strong>Wallet Total:</strong> <span id="walletTotal">--</span></div>
+                    <div><strong>Base Balance(<span id="baseAsset">-</span>  ):</strong> <span id="baseBalance">--</span></div>
+                    <div><strong>Quote Balance(<span id="quoteAsset">-</span>  ):</strong> <span id="quoteBalance">--</span></div>
+                    <button id="refreshBalances" class="btn btn-secondary">Refresh Balances</button>
+                </div>
+
+                <form id="tradeForm" class="trade-form">
+                    <div class="form-row">
+                        <label>Side:</label>
+                        <select id="tradeSide">
+                            <option value="BUY">Buy</option>
+                            <option value="SELL">Sell</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>Type:</label>
+                        <select id="orderType">
+                            <option value="MARKET">Market</option>
+                            <option value="LIMIT">Limit</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="priceInput">Price:</label>
+                        <input id="priceInput" type="number" step="any" placeholder="Price (disabled for market)">
+                    </div>
+                    <div class="form-row">
+                        <label for="amountInput">Amount:</label>
+                        <input id="amountInput" type="number" step="any" placeholder="Amount to buy/sell">
+                        <button type="button" id="useMax" class="btn btn-secondary">Use Max</button>
+                    </div>
+                    <div class="button-group">
+                        <button id="placeOrderBtn" class="btn btn-primary" type="button">Place Order</button>
+                    </div>
+                    <div id="tradeMessage" class="trade-message"></div>
+                </form>
+            </div>
             <div class="section">
                 <h3>WebSocket Status</h3>
                 <div id="wsStatus" class="status-badge status-disconnected">Disconnected</div>
