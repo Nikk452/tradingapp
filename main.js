@@ -1,4 +1,3 @@
-let chart;
 let dragging = false;
 let loggedin = localStorage.getItem("loggedin") === "true";
 let user;
@@ -42,37 +41,77 @@ let currentChartType = 'candlestick';
 let allHistoricalData = [];
 let isLoadingMoreData = false;
 
+const ctx = document.getElementById('chart').getContext('2d');
+
+const chartConfig = {
+  type: 'candlestick',
+  data: {
+    datasets: [{
+      label: currentSymbol,
+      data: candleData,
+      color: {up: '#26a69a', down: '#ef5350'}
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {display: false},
+      tooltip: {
+        callbacks: {
+          title: function(context) {
+            if (!context || !context[0]) return '';
+            const v = context[0].parsed && context[0].parsed.x ? context[0].parsed.x : context[0].parsed;
+            return formatTime(v);
+          },
+          label: function(context) {
+            const p = context.parsed;
+            if (p && p.c !== undefined) return `Close: ${p.c}`;
+            if (p && p.y !== undefined) return `Value: ${p.y}`;
+            return '';
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: false,
+        ticks: {color: '#fff'}
+      },
+      x: {
+        type: 'linear',
+        ticks: {
+          color: '#fff',
+          callback: function(value) {
+            try { return formatTime(value); } catch (e) { return value; }
+          }
+        }
+      }
+    }
+  }
+};
+
+function formatTime(ts) {
+    try {
+        const d = new Date(Number(ts));
+        return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(d);
+    } catch (e) {
+        return String(ts);
+    }
+}
+
+let chart = new Chart(ctx, chartConfig);
+let viewMinX = null;
+let viewMaxX = null;
+
 function init() {
-    console.log("App started");
-    document.getElementById("loginscreen").style.display = "none";
+    console.log("Trading App started");
+    loginscreen.style.display = "none";
     document.getElementById("app").style.display = "flex";
     document.getElementById("accountname").innerText = "Welcome, " + localStorage.getItem("username");
     buttons();
-    chartInit();
-}
-
-function chartInit() {
-    const ctx = document.getElementById('chart').getContext('2d');
-    chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Sample Data',
-                data: [],
-                borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 2,
-                fill: false
-            }]
-        },
-        options: {
-            responsive: true,
-        }
-    });
-    let candledata = [10, 20, 15, 25, 30, 28, 35, 40, 45, 50, 55, 60, 65, 40, 30, 20, 10, 50];
-    chart.data.datasets[0].data = candledata;
-    chart.data.labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
-    chart.update();
+    loadHistoricalData()
+    connectWebSocket();
 }
 
 function buttons(){
@@ -100,6 +139,29 @@ function buttons(){
     connectBtn.addEventListener('click', () => {
         connectAPI()
     })
+    updateSymbolBtn.addEventListener('click', () => {
+        const newSymbol = symbolInput.value.toUpperCase().trim();
+        if (!newSymbol) {
+            console.error('Symbol cannot be empty');
+            return;
+        }
+        currentSymbol = newSymbol;
+        console.log('Updated symbol to:', currentSymbol);
+        loadHistoricalData();
+        connectWebSocket();
+    });
+
+    intervalSelect.addEventListener('change', (e) => {
+        currentInterval = e.target.value;
+        console.log('Updated interval to:', currentInterval);
+        loadHistoricalData();
+        connectWebSocket();
+    });
+
+    chartTypeSelect.addEventListener('change', (e) => {
+        currentChartType = e.target.value;
+        updateChartType();
+    });
 }
 
 async function connectAPI() {
@@ -138,14 +200,12 @@ function loadStoredCredentials() {
     }
 }
 
-// Save credentials to localStorage
 function saveCredentials(key, secret) {
     localStorage.setItem(STORAGE_KEYS.apiKey, key);
     localStorage.setItem(STORAGE_KEYS.apiSecret, secret);
     updateStorageStatus(true);
 }
 
-// Clear stored credentials
 function clearStoredCredentials() {
     localStorage.removeItem(STORAGE_KEYS.apiKey);
     localStorage.removeItem(STORAGE_KEYS.apiSecret);
@@ -162,7 +222,6 @@ function clearStoredCredentials() {
     console.log('Cleared stored credentials');
 }
 
-// Update the saved credentials indicator
 function updateStorageStatus(isSaved) {
   if (storageStatus) {
     if (isSaved) {
@@ -203,6 +262,195 @@ async function verifyBinanceAPI(key, secret) {
     console.error('API Connection Failed:', error);
     return false;
   }
+}
+
+async function connectWebSocket() {
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null;
+        closeWebSocket();
+    }
+    const stream = `${currentSymbol.toLowerCase()}@kline_${currentInterval}`;
+    const wsUrl = `wss://stream.binance.com:9443/ws/${stream}`;
+    try {
+        ws = new WebSocket(wsUrl);
+        ws.onopen = () => {
+            console.log('WebSocket connected for', stream);
+            console.log('ws state', ws?.readyState)
+            wsStatusBadge.textContent = 'Connected';
+            wsStatusBadge.className = 'status-badge status-connected';
+        };
+        ws.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            const kline = message.k;
+            wsPriceDisplay.textContent = `$${parseFloat(kline.c).toFixed(2)}`;
+            if (kline.x <= Date.now()) {
+                const candle = {
+                x: kline.t,
+                o: parseFloat(kline.o),
+                h: parseFloat(kline.h),
+                l: parseFloat(kline.l),
+                c: parseFloat(kline.c)
+            };
+            const existingIndex = candleData.findIndex(c => c.x === candle.x);
+            if (existingIndex >= 0) {
+                candleData[existingIndex] = candle;
+                allHistoricalData[allHistoricalData.findIndex(c => c.x === candle.x)] = candle;
+            } else {
+                candleData.push(candle);
+                allHistoricalData.push(candle);
+            }
+            updateChartData();
+            }
+        };
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            wsStatusBadge.textContent = 'Error';
+            wsStatusBadge.className = 'status-badge status-disconnected';
+        };
+        ws.onclose = () => {
+            console.log('WebSocket disconnected');
+            console.log('ws state', ws?.readyState)
+            wsStatusBadge.textContent = 'Disconnected';
+            wsStatusBadge.className = 'status-badge status-disconnected';
+        };
+    } catch (error) {
+        console.error('Error creating WebSocket:', error);
+        wsStatusBadge.textContent = 'Failed';
+        wsStatusBadge.className = 'status-badge status-disconnected';
+    }
+}
+
+function closeWebSocket() {
+  if (!ws) return Promise.resolve();
+  return new Promise(resolve => {
+    const socket = ws;
+    const onClose = () => {
+      socket.removeEventListener('close', onClose);
+      if (ws === socket) ws = null;
+      resolve();
+    };
+    socket.addEventListener('close', onClose);
+    try { socket.close(); } catch (e) { onClose(); }
+  });
+}
+
+async function fetchBinanceKlines(beforeTime = null) {
+    try {
+        const limit = 100;
+        let url = `https://api.binance.com/api/v3/klines?symbol=${currentSymbol}&interval=${currentInterval}&limit=${limit}`;
+    
+        if (beforeTime) {
+            url += `&endTime=${beforeTime - 1}`;
+        }
+    
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    
+        const data = await response.json();
+        return data.map(kline => ({
+            x: kline[0], // timestamp
+            o: parseFloat(kline[1]), // open
+            h: parseFloat(kline[2]), // high
+            l: parseFloat(kline[3]), // low
+            c: parseFloat(kline[4])  // close
+        }));
+    } catch (error) {
+        console.error('Error fetching Binance klines:', error);
+        return [];
+    }
+}
+
+function getVisibleCandles() {
+  if (allHistoricalData.length === 0) return [];
+  
+  if (viewMinX === null || viewMaxX === null) {
+    return allHistoricalData;
+  }
+  const viewRange = viewMaxX - viewMinX;
+  const bufferTime = viewRange * 0.5; // 50% buffer on each side
+  
+  const filterMin = viewMinX - bufferTime;
+  const filterMax = viewMaxX + bufferTime;
+  
+  if (allHistoricalData.length > 0 && viewMinX < allHistoricalData[0].x) {
+    fetchMoreHistoricalData();
+  }
+  
+  return allHistoricalData.filter(candle => 
+    candle.x >= filterMin && candle.x <= filterMax
+  );
+}
+
+function convertToLineData(candleData) {
+    return candleData.map(candle => ({
+        x: candle.x,
+        y: candle.c
+    }));
+}
+
+function updateChartData() {
+    const visibleData = getVisibleCandles();
+    let data;
+    if (currentChartType === 'candlestick') {
+        data = visibleData;
+    } else {
+        data = convertToLineData(visibleData);
+    }
+    chart.data.datasets[0].label = currentSymbol;
+    chart.data.datasets[0].data = data;
+    chart.update();
+}
+
+function updateChartType() {
+    chart.destroy();
+    const visibleData = getVisibleCandles();
+    let data;
+    if (currentChartType === 'candlestick') {
+        data = visibleData;
+    } else {
+        data = convertToLineData(visibleData);
+    }
+    const newConfig = {
+        type: currentChartType,
+        data: {
+            datasets: [{
+                label: currentSymbol,
+                data: data,
+                color: {up: '#26a69a', down: '#ef5350'},
+                borderColor: currentChartType === 'candlestick' ? undefined : '#26a69a',
+                borderWidth: currentChartType === 'candlestick' ? 0 : 2,
+                fill: false,
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {display: false}
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {color: '#fff'}
+                },
+                x: {
+                    type: 'linear',
+                    ticks: {color: '#fff'}
+                }
+            }
+        }
+    };
+    chart = new Chart(ctx, newConfig);
+    viewMinX = null;
+    viewMaxX = null;
+}
+
+async function loadHistoricalData() {
+    const data = await fetchBinanceKlines();
+    allHistoricalData = data;
+    candleData = data;
+    updateChartData();
 }
 
 window.addEventListener('DOMContentLoaded', loadStoredCredentials);
